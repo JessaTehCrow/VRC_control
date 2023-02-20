@@ -1,0 +1,5 @@
+avatars.json
+*.bat
+*.exe
+build/
+dist/
