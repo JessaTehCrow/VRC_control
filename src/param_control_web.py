@@ -11,7 +11,7 @@ class Params():
         self.get_func = None
         self.cache = None
         self.osc = None
-        self.last_update = None
+        self.last_update = 0
     
     def set(self, put, get, client) -> None:
         self.put_func = put
