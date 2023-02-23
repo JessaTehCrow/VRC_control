@@ -14,12 +14,6 @@ def get_params(ignore_list:list) -> dict:
         avatar_data = json.load(f)
 
     users = os.listdir(directory)
-    # user = users[0]
-    # if len(users) > 1:
-    #     [print(i,x) for i,x in enumerate(users)]
-    #     user = users[int(input("User: "))]
-
-    # dir = directory + user + "/Avatars"
 
     avatars = []
     # Find and load all avatars
@@ -73,6 +67,7 @@ def get_params(ignore_list:list) -> dict:
         #
         new_ignore = get_parameters(parameters)
         save = new_ignore.pop(0)
+        cprint("[GR][INFO] [E]Received data")
 
         if save:
             with open("avatars.json",'w') as f:

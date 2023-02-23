@@ -2,6 +2,7 @@ from aiohttp import web, web_request
 import json
 import threading
 import asyncio
+from cprint import cprint
 
 # 'Database'
 class Data():
@@ -81,7 +82,7 @@ def thread_func(out) -> None:
     asyncio.set_event_loop(loop)
 
     try:
-        web.run_app(app, host="127.0.0.1", port=80)
+        web.run_app(app, host="127.0.0.1", port=80, print=None)
     except asyncio.exceptions.CancelledError:
         # Server closed
         pass
@@ -91,6 +92,7 @@ def get_parameters(params) -> list:
     data.data = params
     
     # Create web thread
+    cprint("\n[GR][INFO][E] Open '[B][U]http://localhost[E]' in your browser!")
     web_app = threading.Thread(target=thread_func, args=(data,))
     web_app.start()
     web_app.join()

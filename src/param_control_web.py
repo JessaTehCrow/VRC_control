@@ -2,6 +2,7 @@ from aiohttp import web
 import json
 from pythonosc.udp_client import SimpleUDPClient
 import time
+from cprint import cprint
 
 # Webserver's database basically
 class Params():
@@ -25,11 +26,12 @@ class Params():
             return params
 
         # Return cache
-        elif cache:
+        elif cache or time.time() - self.last_update < 1:
             return self.cache
         
         self.last_update = time.time()
-        return self.get_func()
+        self.cache = self.get_func()
+        return self.cache
 
     def put(self, name, val) -> None:
         self.put_func(name, val)
@@ -37,7 +39,15 @@ class Params():
 # Input types
 types = {
     'Bool' : '<input type="checkbox" name="&NAME&" autocomplete="off">',
-    'Float': '<input type="range" name="&NAME&" min="0" max="1" value="0" step="0.05" autocomplete="off">'
+    'Float': '<input type="range" name="&NAME&" min="0" max="1" value="0" step="0.05" autocomplete="off">',
+    'Int'  : '<input type="range" name="&NAME&" min="0" max="10" value="0" step="1" autocomplete="off">'
+}
+
+# Convert from 
+get_value = {
+    "Bool" : lambda v: v==1,
+    "Int"  : lambda v: round(float(v)),
+    "Float": float
 }
 
 # parameter template
@@ -80,22 +90,27 @@ async def set(request:web.Request):
     # set parameter value
     if json_data['type'] == "value":
         new_value = params[json_data['name']]
-        new_value['value'] = float(json_data['value'])
+        new_value['value'] = get_value[new_value['type']](json_data['value'])
 
         # Save in database
         parameters.put(json_data['name'], new_value)
         # Send to vrchat
         parameters.osc.send_message("/avatar/parameters/"+json_data['name'], new_value['value'])
-        print(f"[INFO] Set '{json_data['name']}' to {new_value['value']}")
+
+        # Display to console
+        cprint(f"[Y][CONTROL] [GR]Set[E] [G]'{json_data['name']}'[E] : [B]{new_value['value']}")
     
     # Toggle parameter locked
     elif json_data['type'] == "lock":
         new_value = params[json_data['name']]
         new_value['locked'] = json_data['value']
-        
+
         # Save to database
         parameters.put(json_data['name'], new_value)
-        print(f"[INFO] Locked : {json_data['name']}")
+
+        # Diisplay to console
+        text = "Locked" if new_value['locked'] == 1 else "Unlocked"
+        cprint(f"[Y][CONTROL] [R]{text}[E] : [G]'{json_data['name']}'")
 
     # Success response
     return web.Response(text="success")
@@ -144,4 +159,4 @@ def run(param_put:callable, param_get:callable, osc_client:SimpleUDPClient) -> N
     # Set back-end functions 
     parameters.set(param_put, param_get, osc_client)
 
-    web.run_app(app, host="127.0.0.1", port=80)
+    web.run_app(app, host="127.0.0.1", port=80, print=None)

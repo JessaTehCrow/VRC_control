@@ -3,3 +3,4 @@ avatars.json
 *.exe
 build/
 dist/
+__pycache__/

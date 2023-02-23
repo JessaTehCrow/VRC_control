@@ -14,7 +14,6 @@ function toggle(element, to=-1) {
     }
     
     if ([1,0].includes(to)){
-        console.log(to)
         return
     }
 
@@ -81,11 +80,16 @@ function update_values(){
     .then(response => response.text())
     .then(text => {
         data = JSON.parse(text)
+        console.log(data)
         for (let key in data) {
-            
+
             item = document.querySelector("input[name='"+key+"']")
             locked = document.querySelector("img[name='"+key+"']")
-            item.vale = data[key].value.toString
+            if (data[key].type == "Bool") {
+                item.checked = data[key].value
+            } else {
+                item.value = data[key].value
+            }
 
             toggle(locked, data[key].locked)
         }

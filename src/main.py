@@ -68,6 +68,7 @@ def osc_handle(params:dict, client:udp_client.SimpleUDPClient, adress:str, value
 
     elif not parameter['locked'] and parameter['value'] != value:
         # Update value in database
+        cprint(f"[Y][OSC] [GR]Set[E] [G]'{param_name}'[E] : [B]{value}")
         params[param_name]['value'] = value
 
     accessing.clear()
@@ -86,7 +87,7 @@ def osc_func(params):
     server = osc_server.ThreadingOSCUDPServer(
         (HOST, PORT_RECEIVE), dispatcher)
 
-    cprint("[Y]OSC server running....")
+    cprint("[GR][SERVER] [E]OSC server running")
     server.serve_forever()
 
 
@@ -119,17 +120,21 @@ def web_func(params):
     asyncio.set_event_loop(loop)
 
     # Run web server
+    cprint("[GR][SERVER] [E]Web server running")
     param_control_web.run(update_func, get_func, client)
 
 
 ### MAIN THREAD ##
 
 def main(data):
-    osc = Thread(target=osc_func, args=(data,))
-    web = Thread(target=web_func, args=(data,))
-
+    params = data
+    osc = Thread(target=osc_func, args=(params,))
+    web = Thread(target=web_func, args=(params,))
     osc.start()
     web.start()
+
+    time.sleep(.1)
+    cprint(f"\n\n[G]{'_'*20} INFO {'_'*20}")
 
     osc.join()
     web.join()
@@ -143,4 +148,5 @@ if __name__ == "__main__":
             f.write("{}")
 
     data = avatar_params.get_params(parameter_ignore_list)
+    print("\n")
     main(data)
