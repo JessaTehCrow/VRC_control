@@ -1,13 +1,14 @@
 from threading import Thread, Event
 from pythonosc.dispatcher import Dispatcher
 from pythonosc import osc_server
-import time
 from pythonosc import udp_client
-import param_control_web
 from cprint import cprint
+
+import time
+import param_control_web
 import asyncio
 import avatar_params
-from string import ascii_letters,digits
+import json
 
 accessing = Event()
 
@@ -108,7 +109,7 @@ def get_values(params):
     return copy
 
 # Main WEB thread
-def web_func(params):
+def web_func(params, port):
     # prepare functions for thread
     update_func = lambda n,v: update_param(params, n, v)
     get_func    = lambda: get_values(params)
@@ -122,15 +123,16 @@ def web_func(params):
 
     # Run web server
     cprint("[GR][SERVER] [E]Web server running")
-    param_control_web.run(update_func, get_func, client)
+    param_control_web.run(update_func, get_func, client, port)
 
 
 ### MAIN THREAD ##
 
-def main(data):
+def main(data:dict, settings:dict):
     params = data
+
     osc = Thread(target=osc_func, args=(params,))
-    web = Thread(target=web_func, args=(params,))
+    web = Thread(target=web_func, args=(params, settings['port']))
     osc.start()
     web.start()
 
@@ -143,11 +145,13 @@ def main(data):
 
 if __name__ == "__main__":
     import os
+    with open("settings.json") as f:
+        settings = json.load(f)
 
     if not os.path.isfile("avatars.json"):
         with open("avatars.json",'w') as f:
             f.write("{}")
 
-    data = avatar_params.get_params(parameter_ignore_list)
+    data = avatar_params.get_params(parameter_ignore_list, settings)
     print("\n")
-    main(data)
+    main(data, settings)

@@ -153,10 +153,13 @@ async def index(request):
 # Apply all routes
 app.add_routes(routes)
 
-def run(param_put:callable, param_get:callable, osc_client:SimpleUDPClient) -> None:
+def run(param_put:callable, param_get:callable, osc_client:SimpleUDPClient, port:int) -> None:
     # Clear database and prepare for new values
     parameters.clear()
     # Set back-end functions 
     parameters.set(param_put, param_get, osc_client)
 
-    web.run_app(app, host="127.0.0.1", port=80, print=None)
+    portadd = "" if port == 80 else f":{port}"
+
+    cprint(f"[GR][SERVER][E] Webserver running on '[B][U]http://localhost{portadd}[E]'")
+    web.run_app(app, host="127.0.0.1", port=port, print=None)

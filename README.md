@@ -10,8 +10,12 @@ Control your avatar's parameters through a web-application
 - [Sharing control](#sharing-control-with-other-people)
     - [Port forwarding](#port-forwarding)
     - [Ngrok](#ngrok-program)
+- [Settings](#Settings)
+    - [Web port](#web-port)
+    - [OSC directory](#osc-directory)
 - [Known problems](#known-problems)
 - [TODO](#todo)
+
 
 ## Features
 
@@ -102,13 +106,36 @@ Where in this case the url would be `https://aa9d-2001-1c00-513-5800-40a1-2d5c-d
 And you can send this url to other people so they can access it too.
 ___
 
+## Settings
+
+The settings are located within the file `settings.json`
+You can open this file and change the data within to update or change the settings for the program.
+
+### Web Port
+
+**note: you don't need to change this by default. This is only if you're already hosting a web-server on your device**
+
+In the settings file, `"port": 80` indicates which port the program uses.
+change `80` to whichever port you want to use for the program.
+
+
+### OSC directory
+
+The OSC directory is where all the data of the avatars is stored.
+The default directory is in `"C:/Users/&USER&/AppData/LocalLow/VRChat/VRChat/OSC/"`.
+This may change if you're running a different operating system, or have different drive prefixes.
+
+In the settings file, `"directory": ". . ."` indicates which directory the program will look for the avatar files.
+
+Change what comes after `"directory":` to what directory you want to use. Enclose the new directory in double quotes.
+
+Example:
+`"directory": "C:/new/directory/for/osc/"`
+
 ## Known problems
 
-- Fixed port
-- Fixed avatar directory
 - Limited int-slider
 
 ## TODO
 
-- Add settings file *(fixes port & avatar directory)*
 - Add int only input box *(Fixes Limited int-slider)*

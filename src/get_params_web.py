@@ -71,7 +71,7 @@ async def submit(request:web_request.Request):
     await asyncio.sleep(100)
 
 
-def thread_func(out) -> None:
+def thread_func(out,port:int) -> None:
     # Create app for thread
     app = web.Application()
     app.add_routes(routes)
@@ -82,18 +82,20 @@ def thread_func(out) -> None:
     asyncio.set_event_loop(loop)
 
     try:
-        web.run_app(app, host="127.0.0.1", port=80, print=None)
+        web.run_app(app, host="127.0.0.1", port=port, print=None)
     except asyncio.exceptions.CancelledError:
         # Server closed
         pass
 
-def get_parameters(params) -> list:
+def get_parameters(params:dict, port:int) -> list:
     data.clear()
     data.data = params
-    
+
+    port_add = "" if port == 80 else f":{port}"
+
     # Create web thread
-    cprint("\n[GR][INFO][E] Open '[B][U]http://localhost[E]' in your browser!")
-    web_app = threading.Thread(target=thread_func, args=(data,))
+    cprint(f"\n[GR][INFO][E] Open '[B][U]http://localhost{port_add}[E]' in your browser!")
+    web_app = threading.Thread(target=thread_func, args=(data,port,))
     web_app.start()
     web_app.join()
 

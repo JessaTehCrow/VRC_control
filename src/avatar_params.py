@@ -3,11 +3,19 @@ from cprint import cprint, cconvert
 from get_params_web import get_parameters
 
 
-def get_params(ignore_list:list) -> dict:
+def get_params(ignore_list:list, settings:dict) -> dict:
     # Get computer name
     username = os.getlogin()
     # Get VRC OSC directory
-    directory = f"C:/Users/{username}/AppData/LocalLow/VRChat/VRChat/OSC/"
+    directory = settings['directory'].replace("&USER&", username)
+
+    if not os.path.isdir(directory):
+        cprint(f"\n\n[R]Directory: [Y]{directory} [R]Was not found.")
+        cprint("\n[R][!] [Y]Did you change the directory in the settings?")
+        cprint("[R][!] [Y]Did you enable OSC In Vrchat?\n\n")
+        cprint("Follow the setup for this program here: [U][B]https://github.com/JessaTehCrow/VRC_control#how-to-install")
+        input(cconvert("\n[G]Press enter to exit"))
+        exit()
 
     # Load saved avatars
     with open("avatars.json","r") as f:
@@ -65,7 +73,7 @@ def get_params(ignore_list:list) -> dict:
         # Format:
         # [save_to_disk:bool, *parameter_to_ignore:string]
         #
-        new_ignore = get_parameters(parameters)
+        new_ignore = get_parameters(parameters, settings['port'])
         save = new_ignore.pop(0)
         cprint("[GR][INFO] [E]Received data")
 
