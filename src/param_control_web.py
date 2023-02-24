@@ -40,7 +40,11 @@ class Params():
 types = {
     'Bool' : '<input type="checkbox" name="&NAME&" autocomplete="off">',
     'Float': '<input type="range" name="&NAME&" min="0" max="1" value="0" step="0.05" autocomplete="off">',
-    'Int'  : '<input type="range" name="&NAME&" min="0" max="10" value="0" step="1" autocomplete="off">'
+    'Int'  : """
+        <button name="&NAME&" value="-">-</button>
+        <input type="number" name="&NAME&" autocomplete="off" min=0 max=255>
+        <button name="&NAME&" value="+">+</button>"""
+                
 }
 
 # Convert from 

@@ -66,6 +66,33 @@ input[type="checkbox"] {
     height:70px;
 }
 
+input[type="number"] {
+    width:100px;
+    text-align: center;
+    height:50px;
+    font-size: 30px;
+}
+
+button {
+    width:100px;
+    height:40px;
+    border:none;
+    background-color:rgba(255,255,255,0.1);
+    color:white;
+    font-size: 20px;
+    font-weight: bold;
+}
+button:hover {
+    background-color: rgba(255,255,255,0.2);
+    cursor: pointer;
+    transition: 0.1s;
+}
+button:active {
+    background-color: rgba(255,255,255,0.15);
+    transition: 0s;
+}
+
+
 .parameter img {
     width:40px;
     height:60px;
@@ -91,3 +118,12 @@ input[type="checkbox"] {
     transition: .2s;
 }
 
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type=number] {
+    -moz-appearance:textfield;
+}
