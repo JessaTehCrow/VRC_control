@@ -91,12 +91,12 @@ Which allows me to open a specific port from my computer to the internet using a
 **Note:**
 ***You will have to login to the ngrok services to use it. It is free and can have it running indefinitely. However, you can only run 1 instance of it per account: [ngrok setup](ngrok_setup.md)***
 
-Once you have finished with the [ngrok setup](ngrok_setup.md), you can open the ngrok exe and type `ngrok tcp 80` to open port 80 to others (which is what we need now).
+Once you have finished with the [ngrok setup](ngrok_setup.md), you can open the ngrok exe and type `ngrok http 80` to open port 80 to others (which is what we need now).
 
-Once your session has started, you can share the url with other people. Replace `tcp://` with `http://`
+Once your session has started, you can share the url with other people.
 ![](images/ngrok.png)
 
-Where in this case the url would be `http://5.tcp.eu.ngrok.io:13218` 
+Where in this case the url would be `https://aa9d-2001-1c00-513-5800-40a1-2d5c-d1c6-77f8.eu.ngrok.io` 
 *(This will not be your url. Yours is different)*
 
 And you can send this url to other people so they can access it too.

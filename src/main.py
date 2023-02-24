@@ -7,6 +7,7 @@ import param_control_web
 from cprint import cprint
 import asyncio
 import avatar_params
+from string import ascii_letters,digits
 
 accessing = Event()
 
