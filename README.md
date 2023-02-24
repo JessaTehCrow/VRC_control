@@ -1,6 +1,17 @@
 # VRC_control
+
 Control your avatar's parameters through a web-application
 
+- [Features](#features)
+- [How to install](#how-to-install)
+    - [Program](#executable-only)
+    - [Cloning](#repo-clone)
+- [How to use](#how-to-use)
+- [Sharing control](#sharing-control-with-other-people)
+    - [Port forwarding](#port-forwarding)
+    - [Ngrok](#ngrok-program)
+- [Known problems](#known-problems)
+- [TODO](#todo)
 
 ## Features
 
@@ -33,6 +44,11 @@ ___
 
 ## How to use
 
+***NOTE***
+***Before you can use the program you will have to turn on OSC in vrchat***
+
+![](images/osc.gif)
+
 Upon starting the program, you will be prompted with which avatar you would like to choose within the terminal:
 ![](images/loaded.png)
 
@@ -55,23 +71,27 @@ ___
 
 You will have to either open a port on your router, or use a program to open your local network to others.
 
-#### Port Forwarding
+So you have two possibilities:
+
+- Ngrok
+- Portforwarding
+
+### Port Forwarding
 
 To open a port on your router, you will have to port-forward the tcp port 80 on your router.
 Since it works differently for each router, i cannot make a standardized guide for this, you can find this on the internet. 
 
 Search up `[router type] port-forwarding` (where `[router type]` is your router) on google or youtube.
 
-#### Ngrok Program
+### Ngrok Program
 
 I personally like to use [ngrok](https://ngrok.com/download). 
 Which allows me to open a specific port from my computer to the internet using a simple to use program.
 
 **Note:**
-***You don't need to sign up for Ngrok to use it, however the session will expire in 2 hours if you do not, forcing you to restart the session. Signing up with a free account prevents this.***
+***You will have to login to the ngrok services to use it. It is free and can have it running indefinitely. However, you can only run 1 instance of it per account: [ngrok setup](ngrok_setup.md)***
 
-Once installed, you can open a new commandline (`windows key + r` and type `cmd`).
-When your commandline has opened, you can type `ngrok tcp 80` to open port 80 to others (which is what we need now).
+Once you have finished with the [ngrok setup](ngrok_setup.md), you can open the ngrok exe and type `ngrok tcp 80` to open port 80 to others (which is what we need now).
 
 Once your session has started, you can share the url with other people. Replace `tcp://` with `http://`
 ![](images/ngrok.png)
