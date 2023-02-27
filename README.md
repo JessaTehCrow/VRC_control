@@ -134,8 +134,6 @@ Example:
 
 ## Known problems
 
-- Limited int-slider
+- Limited float slider (Max range 0-1, probably won't be fixed) 
 
 ## TODO
-
-- Add int only input box *(Fixes Limited int-slider)*
