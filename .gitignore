@@ -1,7 +1,6 @@
-avatars.json
-*.bat
-*.exe
-build/
-dist/
-__pycache__/
-*.spec
+#ignore
+vendor/*
+composer.lock
+
+#keep
+!vendor/autoload.php
