@@ -1,7 +1,0 @@
-avatars.json
-*.bat
-*.exe
-build/
-dist/
-__pycache__/
-*.spec
