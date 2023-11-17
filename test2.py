@@ -1,4 +1,9 @@
-def myround(x, prec=2, base=.05):
-    return round(base * round(float(x)/base),prec)
+import websocket
 
-print(myround(1.3409248, base=0.025))
+def error(*a):
+    print(a)
+
+
+while True:
+    app = websocket.WebSocketApp("ws://localhost:8080", on_error=error)
+    app.run_forever()

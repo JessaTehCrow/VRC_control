@@ -166,3 +166,72 @@ class NewInstance(CTkScrollableFrame):
         self.param_select.load_values(values)
 
         self.params.initialize()
+
+
+class RoomWindow(CTkToplevel):
+    def __init__(self, settings:StyleSettings, close_callback=None, *args, **kwargs):
+        super().__init__(*args, fg_color=settings.BACKGROUND_COLOR, **kwargs)
+        self.settings = settings
+        self.close_callback = close_callback
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+
+        self.bg_jobs:BackgroundJobs = AppSettings().background_jobs
+
+        self.title("Room")
+        self.geometry("400x250")
+        self.resizable(0, 0)
+
+        self.protocol("WM_DELETE_WINDOW", self.on_close)
+
+        self.label = CTkLabel(self, text="Connecting...")
+        self.label.grid(row=0, column=0)
+
+        self.retry = CTkButton(self, text="Retry", command=self.retry_connect, **self.settings.BUTTON_STYLE, font=CTkFont(size=20))
+
+        self.label.focus()
+        self.connect()
+
+
+    def retry_connect(self):
+        self.label.configure(text="Connecting...")
+        self.retry.grid_forget()
+        self.bg_jobs.subscribe_callback(ConnectionRefusedError, self.failed_connect)
+        self.bg_jobs.websocket_connect_callbacks.append(self.connect)
+
+
+    def failed_connect(self, _=None):
+        self.label.configure(text="Failed to connect")
+        self.retry.grid(row=1, column=0, sticky="ew")
+        self.bg_jobs.unsubscribe_callback(ConnectionRefusedError, self.failed_connect)
+
+        if self.connect in self.bg_jobs.websocket_connect_callbacks:
+            self.bg_jobs.websocket_connect_callbacks.remove(self.connect)
+
+
+    def clear_frame(self):
+        for x in self.winfo_children():
+            x.grid_forget()
+
+    
+    def connect(self):
+        if not self.bg_jobs.initialized:
+            self.failed_connect()
+            return
+        
+        self.clear_frame()
+        self.label = CTkLabel(self, text="Creating room...")
+        self.label.grid(row=0, column=0)
+
+
+    def focus(self):
+        self.state('normal')
+        self.focus_set()
+    
+
+    def on_close(self):
+        self.bg_jobs
+        if self.close_callback != None:
+            self.close_callback()
+
+        self.destroy()

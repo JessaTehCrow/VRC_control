@@ -10,8 +10,9 @@ import threading
 import asyncio
 
 
-def myround(x, prec=2, base=.075):
+def myround(x, prec=2, base=.05):
     return round(base * round(float(x)/base),prec)
+
 
 parameter_ignore_list = [
     "Avatar Scale",
@@ -69,6 +70,7 @@ parameter_ignore_list = [
     "Go/PosePlaySpace",
     "Go/JSRF/WallRun"
 ]
+
 
 default_settings = {
     "normal":{
@@ -147,6 +149,10 @@ class BackgroundJobs():
     def __init__(self):
         self.initialized = False
 
+        self.websocket_error_callbacks = {}
+        self.websocket_connect_callbacks = []
+
+        self.connect_attempt = None
         self.websocket = None
         self._web_thread = None
         self.count = 0
@@ -162,13 +168,34 @@ class BackgroundJobs():
 
         self.roomid = None
 
+
+    def subscribe_callback(self, callback_type, function):
+        if not callback_type in self.websocket_error_callbacks:
+            self.websocket_error_callbacks[callback_type] = []
+
+        self.websocket_error_callbacks[callback_type].append(function)
+        return True
+
+
+    def unsubscribe_callback(self, callback_type, function):
+        if not callback_type in self.websocket_error_callbacks:
+            return True
+        if not function in self.websocket_error_callbacks[callback_type]:
+            return True
+        
+        self.websocket_error_callbacks[callback_type].remove(function)
+        return True
+    
+
     def create_room(self):
         data = {
             "type":"create",
             "data":{
-
+                "password":"",
+                "data": {}
             }
         }
+        self.bg_send(json.dumps(data))
 
 
     def init_websocket(self):
@@ -185,6 +212,17 @@ class BackgroundJobs():
         thread = threading.Thread(target=asyncio.run, args=(self._osc_loop(),))
         thread.start()
         self._osc_thread = thread
+
+
+    def _websocket_error(self, socket, error):
+        self.initialized = False
+        error_type = type(error)
+        if not error_type in self.websocket_error_callbacks:
+            return
+        
+        for f in self.websocket_error_callbacks[error_type]:
+            print(f)
+            f(error)
 
 
     async def _osc_loop(self):
@@ -223,7 +261,7 @@ class BackgroundJobs():
     def _setup_socket(self):
         while True:
             try:
-                socket = websocket.WebSocketApp("ws://localhost:8080", on_message=self._on_websocket_message, on_open=self._on_websocket_connect, on_close=self._on_websocket_close)
+                socket = websocket.WebSocketApp("ws://localhost:8080", on_message=self._on_websocket_message, on_open=self._on_websocket_connect, on_close=self._on_websocket_close, on_error=self._websocket_error)
                 socket.run_forever()
             except Exception as e:
                 print(e)
@@ -305,6 +343,12 @@ class StyleSettings():
             "scrollbar_button_hover_color": "#232f4f"
         }
 
+        self.BUTTON_STYLE = {
+            "fg_color":self.BACKGROUND_COLOR,
+            "hover_color":self.BUTTON_HOVER,
+            "text_color":self.TEXT_COLOR
+        }
+
         self.NAV_BAR_BUTTON = {
             "text_color": self.TEXT_COLOR,
             "hover_color": "#293653",
@@ -336,13 +380,15 @@ class AppSettings():
         self.password:str = ""
         AppSettings.__instance = self
 
+        self._check_file("settings.json", default=default_settings)
+
 
     def _check_file(self, filename="settings.json", default:dict={}):
         settings_file = os.path.join(self.dir, "VRC Control", filename)
         if os.path.isfile(settings_file): 
             return
 
-        if not os.path.isdir(self.dir):
+        if not os.path.isdir(os.path.dirname(settings_file)):
             os.mkdir(os.path.dirname(settings_file))
 
         with open(settings_file, 'w') as f:
@@ -731,48 +777,3 @@ class BoolSelect(CTkFrame):
                 "selected":selected,
                 "item":label
             }
-
-
-class RoomWindow(CTkToplevel):
-    def __init__(self, settings:StyleSettings, close_callback=None, *args, **kwargs):
-        super().__init__(*args, fg_color=settings.BACKGROUND_COLOR, **kwargs)
-        self.close_callback = close_callback
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(0, weight=1)
-
-        self.bg_jobs:BackgroundJobs = AppSettings().background_jobs
-
-        self.title("Room")
-        self.geometry("400x250")
-        self.resizable(0, 0)
-
-        self.protocol("WM_DELETE_WINDOW", self.on_close)
-
-        self.label = CTkLabel(self, text="Connecting...")
-        self.label.grid(row=0, column=0)
-
-        self.focus()
-
-
-    def clear_frame(self):
-        for x in self.winfo_children():
-            x.grid_forget()
-
-    
-    def connect(self):
-        self.clear_frame()
-        self.label = CTkLabel(self, text="Connecting...")
-        self.label.grid(row=0, column=0)
-
-
-    def focus(self):
-        self.state('normal')
-        self.label.focus_set()
-    
-
-    def on_close(self):
-        self.bg_jobs
-        if self.close_callback != None:
-            self.close_callback()
-        
-        self.destroy()
