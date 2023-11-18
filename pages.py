@@ -1,3 +1,4 @@
+import pyperclip
 from customtkinter import *
 from utils import *
 
@@ -137,7 +138,7 @@ class NewInstance(CTkScrollableFrame):
             self.param_select.reset()
             self.params.grid_forget()
             self._parent_canvas.yview_moveto(0)
-            window = RoomWindow(self.settings, close_callback=self.room_closed)
+            window = RoomWindow(self.settings, close_callback=self.room_closed, data=get_avatar_data(self.avatars[avi_name]["parameters"], values))
             self.room_window = window
             self.button.configure(command=self.room_window.focus)
 
@@ -169,14 +170,18 @@ class NewInstance(CTkScrollableFrame):
 
 
 class RoomWindow(CTkToplevel):
-    def __init__(self, settings:StyleSettings, close_callback=None, *args, **kwargs):
+    def __init__(self, settings:StyleSettings, close_callback=None, data={}, *args, **kwargs):
         super().__init__(*args, fg_color=settings.BACKGROUND_COLOR, **kwargs)
+        self.data = data
         self.settings = settings
+        self.connected = 1
         self.close_callback = close_callback
+
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
         self.bg_jobs:BackgroundJobs = AppSettings().background_jobs
+        self.bg_jobs.subscribe_callback(ConnectionResetError, self.on_close)
 
         self.title("Room")
         self.geometry("400x250")
@@ -188,12 +193,27 @@ class RoomWindow(CTkToplevel):
         self.label.grid(row=0, column=0)
 
         self.retry = CTkButton(self, text="Retry", command=self.retry_connect, **self.settings.BUTTON_STYLE, font=CTkFont(size=20))
+        self.bg_jobs.joinleave_callback = self.user_callbacks
 
+        if not self.bg_jobs.initialized:
+            self.failed_connect()
+        else:
+            self.connect()
+
+        self.focus()
         self.label.focus()
-        self.connect()
+
+
+    def user_callbacks(self, new):
+        self.connected += new
+        self.connected_label.configure(text=f"Connected: {self.connected}")
 
 
     def retry_connect(self):
+        if self.bg_jobs.initialized:
+            self.connect()
+            return
+        
         self.label.configure(text="Connecting...")
         self.retry.grid_forget()
         self.bg_jobs.subscribe_callback(ConnectionRefusedError, self.failed_connect)
@@ -213,15 +233,44 @@ class RoomWindow(CTkToplevel):
         for x in self.winfo_children():
             x.grid_forget()
 
-    
-    def connect(self):
-        if not self.bg_jobs.initialized:
-            self.failed_connect()
-            return
-        
+
+    def connect(self):        
         self.clear_frame()
         self.label = CTkLabel(self, text="Creating room...")
         self.label.grid(row=0, column=0)
+        self.bg_jobs.create_callback = self.created_callback
+
+        password = AppSettings().password if AppSettings().use_password else ""
+        AppSettings().background_jobs.create_room(password, self.data)
+
+
+    def created_callback(self, id):
+        settings = AppSettings().load_settings("settings.json")
+        if settings["normal"]["joinSounds"]["value"]:
+            play_sound(join_sound)
+
+        self.clear_frame()
+
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(2, weight=1)
+
+        self.top = CTkFrame(self, height=50, fg_color=self.settings.MENU_COLOR, corner_radius=0)
+        self.top.grid(row=0, column=0, sticky="new")
+        self.top.grid_rowconfigure(0, weight=1)
+
+        self.room_id = CTkLabel(self.top, text="Room ID: "+id, text_color=self.settings.HEADER_COLOR, font=CTkFont(size=25, weight="bold", family="Verdana"))
+        self.room_id.grid(row=0, column=0, pady=10, padx=15, sticky='w')
+
+        self.copy_button = CTkButton(self.top, text="Copy", width=80, **self.settings.BUTTON_STYLE, font=CTkFont(size=15), command=lambda: pyperclip.copy(id))
+        self.copy_button.grid(row=0, column=1, padx=(25,0), sticky="e")
+
+        self.stats = CollapsibleFrame(self, self.settings, "Stats", collapsible=False, fg_color=self.settings.MENU_COLOR)
+        self.stats.grid(row=1, column=0, sticky="news", padx=20, pady=20)
+
+        self.connected_label = self.stats.add_item(CTkLabel, text=f"Connected: {self.connected}", text_color=self.settings.TEXT_COLOR, font=CTkFont(size=17))
+        self.stats.initialize()
+
+        self.top.focus_set()
 
 
     def focus(self):
@@ -229,8 +278,18 @@ class RoomWindow(CTkToplevel):
         self.focus_set()
     
 
-    def on_close(self):
-        self.bg_jobs
+    def on_close(self, *_):
+        settings = AppSettings().load_settings("settings.json")
+        if settings["normal"]["closeSounds"]["value"]:
+            play_sound(leave_sound)
+
+        self.bg_jobs.joinleave_callback = None
+        self.bg_jobs.unsubscribe_callback(ConnectionResetError, self.on_close)
+        self.bg_jobs.unsubscribe_callback(ConnectionRefusedError, self.failed_connect)
+
+        if self.bg_jobs.initialized:
+            self.bg_jobs.bg_send('{"type":"disconnect"}')
+
         if self.close_callback != None:
             self.close_callback()
 

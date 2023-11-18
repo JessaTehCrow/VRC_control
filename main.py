@@ -39,7 +39,12 @@ class App(CTk):
 
         self.display = CTkFrame(self)
         self.settings = StyleSettings()
+
+        AppSettings().root = self
+        AppSettings().background_jobs.settings = self.settings
+
         self.cache = {}
+        self.notifications = []
 
         self.title("VRC Control")
         self.geometry("1000x600")
@@ -54,6 +59,12 @@ class App(CTk):
 
         self.set_display(main_page)
 
+        Notification(self, "NOTE: Update checker & Auto updater do not work yet", **self.settings.BAD_NOTIFICATION)
+
+
+    def notification_callback(self, _):
+        self.notification.destroy()
+
 
     def set_display(self, page):
         self.settings.ACTIVE_PAGE = page.__name__
@@ -67,7 +78,10 @@ class App(CTk):
 
         old.grid_forget()
         self.display.grid(row=0, column=1, sticky="news")
+
         self.navbar.update_buttons()
+        for notification in self.notifications:
+            notification.lift(self.display)
     
 
     def page_callback(self, page):
@@ -77,15 +91,14 @@ class App(CTk):
 
 
 if __name__ == "__main__":
-    # settings = AppSettings()
     AppSettings().background_jobs = BackgroundJobs()
     AppSettings().background_jobs.init_websocket()
     AppSettings().background_jobs.init_osc()
 
-    app = App(pages.NewInstance)
+    app = App(pages.NewInstance)    
     try:
         app.mainloop()
     except Exception as e:
         print(e)
 
-    os._exit(1)
+    AppSettings().background_jobs.close()

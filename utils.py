@@ -1,17 +1,36 @@
-from customtkinter import *
 from pythonosc import osc_server, udp_client
 from pythonosc.dispatcher import Dispatcher
+from customtkinter import *
 
-import string
-import os
-import json
 import websocket
 import threading
 import asyncio
+import pygame
+import string
+import json
+import time
+import os
+
+pygame.init()
+pygame.mixer.init()
+
+join_sound = pygame.mixer.Sound("join.mp3")
+leave_sound = pygame.mixer.Sound("leave.mp3")
+change_sound = pygame.mixer.Sound("change1.ogg")
 
 
-def myround(x, prec=2, base=.05):
-    return round(base * round(float(x)/base),prec)
+def play_sound(sound):
+    settings = AppSettings().load_settings("settings.json")
+    volume = settings["normal"]["volume"]["value"]
+
+    sound.set_volume(volume)
+    sound.play()
+
+
+def myround(x, prec=2, base=0.0125):
+    new_value = round(base * round(x/base), prec)
+    return new_value
+    # return round(base * round(float(x)/base), prec)
 
 
 parameter_ignore_list = [
@@ -73,21 +92,25 @@ parameter_ignore_list = [
 
 
 default_settings = {
-    "normal":{
+    "normal": {
         "update": {
-            "name":"Check for updates",
-            "value":True
+            "name": "Check for updates",
+            "value": True
         },
         "autoUpdate": {
-            "name":"Auto Update",
+            "name": "Auto Update",
             "value": True
         },
         "joinSounds": {
-            "name":"Join / Leave sounds",
+            "name": "Join / Leave sounds",
             "value": True
         },
-        "closeSounds":{
-            "name":"Sounds on room close",
+        "closeSounds": {
+            "name": "Sounds on room close",
+            "value": True
+        },
+        "changeSounds": {
+            "name": "Sound on parameter change",
             "value": True
         },
         "volume": {
@@ -95,20 +118,27 @@ default_settings = {
             "value": 0.5
         }
     },
-
     "advanced": {
         "host": {
             "name": "Host",
-            "value": "https://localhost:8000",
-            "type":"text"
+            "value": "ws://localhost:8081",
+            "type": "text"
         },
         "vrcfolder": {
             "name": "OSC Avatar folder",
-            "value": "",
-            "type":"path"
+            "value": "C:/Users/Jessa/AppData/LocalLow/VRChat/VRChat/OSC/usr_f4e7864a-68c1-4413-82e9-f57ff23a2fe1/Avatars",
+            "type": "path"
         }
     }
 }
+
+
+def get_root(widget):
+    widget = widget
+    while not (isinstance(widget, CTk) or isinstance(widget, CTkToplevel)):
+        widget = widget.master
+    
+    return widget
 
 
 def get_avatars():
@@ -145,15 +175,36 @@ def get_avatars():
     return avatars
 
 
+def get_avatar_data(params:dict, selected:dict):
+    defaults = {
+        "bool": False,
+        "float": 0.0,
+        "int": 0
+    }
+
+    out = {}
+    for param in params:
+        if param["name"] not in selected:
+            continue
+        
+        inp_type = param["input"]["type"].lower()
+        out[param["name"]] = [inp_type, defaults[inp_type]]
+    
+    return out
+
+
 class BackgroundJobs():
     def __init__(self):
         self.initialized = False
 
+        self.settings = None
+        
+        self.websocket = None
+        self.websocket_error = False
+        self.websocket_host = None
         self.websocket_error_callbacks = {}
         self.websocket_connect_callbacks = []
-
         self.connect_attempt = None
-        self.websocket = None
         self._web_thread = None
         self.count = 0
 
@@ -161,12 +212,37 @@ class BackgroundJobs():
         self.osc_client = None
         self._osc_server = None
         self._osc_thread = None
+        self._osc_dispatch = None
 
         self.osc_host = "127.0.0.1"
         self.osc_send = 9000
         self.osc_recv = 9001
 
+        self.create_callback = None
         self.roomid = None
+        self.closed = False
+        self.joinleave_callback = None
+        self.last_change_sound = 999999
+
+
+    def do_sound(self, sound, event_type=1):
+        settings = AppSettings().load_settings("settings.json")
+        do_sound = settings["normal"]["joinSounds"]["value"]
+
+        if do_sound:
+            play_sound(sound)
+
+        if self.joinleave_callback != None:
+            self.joinleave_callback(event_type)       
+
+
+    def change(self):
+        settings = AppSettings().load_settings("settings.json")
+        do_sound = settings["normal"]["changeSounds"]["value"]
+
+        if time.time() - self.last_change_sound > 0.13 and do_sound:
+            self.last_change_sound = time.time()
+            play_sound(change_sound)
 
 
     def subscribe_callback(self, callback_type, function):
@@ -187,15 +263,21 @@ class BackgroundJobs():
         return True
     
 
-    def create_room(self):
+    def create_room(self, password, data):
         data = {
             "type":"create",
             "data":{
-                "password":"",
-                "data": {}
+                "password":password,
+                "data": data
             }
         }
         self.bg_send(json.dumps(data))
+
+
+    def close(self):
+        self.closed = True
+        self._osc_server.shutdown()
+        self.websocket.close()
 
 
     def init_websocket(self):
@@ -214,36 +296,62 @@ class BackgroundJobs():
         self._osc_thread = thread
 
 
-    def _websocket_error(self, socket, error):
-        self.initialized = False
-        error_type = type(error)
-        if not error_type in self.websocket_error_callbacks:
-            return
-        
-        for f in self.websocket_error_callbacks[error_type]:
-            print(f)
-            f(error)
+    def reset_osc_dispatch(self):
+        for param in self._osc_data:
+            self._osc_dispatch.unmap(f"/avatar/parameters/{param}", self._osc_handle)
+
+
+    def map_osc_dispatch(self):
+        for param in self._osc_data:
+            self._osc_dispatch.map(f"/avatar/parameters/{param}", self._osc_handle)
 
 
     async def _osc_loop(self):
         client = udp_client.SimpleUDPClient(self.osc_host, self.osc_send)
         dispatcher = Dispatcher()
         
-        # Create listen events for all user-set parameters
-        for param in self._osc_data:
-            dispatcher.map(f"/avatar/parameters/{param}", self._osc_handle)
-        
         server = osc_server.ThreadingOSCUDPServer(
             (self.osc_host, self.osc_recv), dispatcher)
         
         self.osc_client = client
         self._osc_server = server
+        self._osc_dispatch = dispatcher
         server.serve_forever()
     
+    
+    def _websocket_error(self, socket, error):
+        print("Socket errrororoorr")
+        print(type(error).__name__, error)
+        if not self.websocket_error:
+            Notification(AppSettings().root, "Failed to connect to server", **self.settings.BAD_NOTIFICATION)
+
+        self.websocket_error = True
+        self.initialized = False
+        settings = AppSettings().load_settings("settings.json", default_settings)
+        host = settings["advanced"]["host"]["value"]
+
+        error_type = type(error)
+        if self.websocket_host != host:
+            print("Host changed")
+            socket.close()
+        
+        if not error_type in self.websocket_error_callbacks:
+            return
+        
+        for f in self.websocket_error_callbacks[error_type]:
+            f(error)
+
 
     def _on_websocket_connect(self, socket):
+        if self.websocket_error:
+            Notification(AppSettings().root, "Successfully reconnected to server", **self.settings.GOOD_NOTIFICATION)
         self.initialized = True
+        self.websocket_error = False
         self.websocket = socket
+
+        for f in self.websocket_connect_callbacks:
+            f()
+
         print("Connected to socket")
 
 
@@ -254,44 +362,45 @@ class BackgroundJobs():
 
 
     def _on_websocket_close(self, ws, close_status_code, close_msg):
-        self._setup_socket()
+        print("Closed!")
         self.initialized = False
 
 
     def _setup_socket(self):
-        while True:
-            try:
-                socket = websocket.WebSocketApp("ws://localhost:8080", on_message=self._on_websocket_message, on_open=self._on_websocket_connect, on_close=self._on_websocket_close, on_error=self._websocket_error)
-                socket.run_forever()
-            except Exception as e:
-                print(e)
+        while not self.closed:
+            settings = AppSettings().load_settings("settings.json", default_settings)
+            socket_host = settings["advanced"]["host"]["value"]
+            self.websocket_host = socket_host
+
+            socket = websocket.WebSocketApp(socket_host, on_message=self._on_websocket_message, on_open=self._on_websocket_connect, on_close=self._on_websocket_close, on_error=self._websocket_error)
+            self.websocket = socket
+            socket.run_forever()
 
 
     def _osc_handle(self, adress:str, value):
-        print(adress, value)
         name = adress[len("/avatar/parameters/"):]
+        (osc_value, locked) = self._osc_data[name]
         
-        if type(value) == float:
-            value = myround(value)
-
         if name not in self._osc_data:
             return
 
-        elif value == self._osc_data[name][0]:
+        elif value == osc_value:
             return
         
+        if type(value) == float:
+            value = myround(value)
+        
+        # Osc data [0] = Value, [1] = Locked
+        if locked == True:
+            self.osc_client.send_message("/avatar/parameters/" + name, osc_value)
+            return
 
-        async def inner():
-            self._osc_data[name][0] = value
-            self.bg_send(json.dumps({"type":"update","data":{"name":name, "value":value}}))
-            self.count += 1
-            print(adress, value)
-
-        return asyncio.run(inner())
+        self._osc_data[name][0] = value
+        self.bg_send(json.dumps({"type":"update","data":{"name":name, "value":value}}))
+        self.count += 1
 
 
     def _socket_handle_input(self, data:dict):
-        print(data)
         if "message" in data:
             print(data["message"])
 
@@ -304,25 +413,37 @@ class BackgroundJobs():
             req_data = data["data"]
             name = req_data["name"]
             value = req_data["value"]
+            locked = req_data["locked"]
 
-            if type(value) == float:
+            if req_data["type"] == "float":
                 value = myround(value)
             
-            if self._osc_data[name] == value:
+            if self._osc_data[name][0] == value and self._osc_data[name][1] == locked:
                 return
 
-            self._osc_data[name][0] = value
-            print("NEW VALUE:", value)
+            self.change()
+            self._osc_data[name] = [value, locked]
             self.osc_client.send_message("/avatar/parameters/"+name, value)
 
         elif handle_type == "connected":
             req_data = data["data"]
             self.roomid = req_data["id"]
             self._osc_data = {name:value[1:] for (name,value) in req_data["data"].items()}
-        
+            self.map_osc_dispatch()
+
+            if self.create_callback != None:
+                self.create_callback(self.roomid)
+
         elif handle_type == "disconnect":
+            self.reset_osc_dispatch()
             self.roomid = None
             self._osc_data = {}
+        
+        elif handle_type == "user_joined":
+            self.do_sound(join_sound, 1)
+        
+        elif handle_type == "user_left":
+            self.do_sound(leave_sound, -1)
 
         else:
             print(data)
@@ -337,6 +458,18 @@ class StyleSettings():
         self.MENU_COLOR = "#182035"
         self.MENU_TITLE_COLOR = "#43527d"
         self.BUTTON_HOVER = "#232f4f"
+
+        self.BAD_NOTIFICATION = {
+            "fg_color"  : "#e07575",
+            "text_color": "#182035",
+            "border_width": 0
+        }
+
+        self.GOOD_NOTIFICATION = {
+            "fg_color"  : "#8ae09f",
+            "text_color": "#182035",
+            "border_width": 0
+        }
 
         self.SCROLL_BAR = {
             "scrollbar_button_color": "#182035",
@@ -375,6 +508,7 @@ class AppSettings():
         if AppSettings.__instance != None:
             return
         
+        self.cache = {}
         self.background_jobs:BackgroundJobs = None
         self.use_password:bool = False
         self.password:str = ""
@@ -395,11 +529,16 @@ class AppSettings():
             json.dump(default, f, indent=4)
 
 
-    def load_settings(self, filename="settings.json", default={}):
+    def load_settings(self, filename="settings.json", default={}) -> dict:
+        if filename in self.cache:
+            return self.cache[filename]
+
         self._check_file(filename, default=default)
         settings_file = os.path.join(self.dir, "VRC Control", filename)
         with open(settings_file, 'r') as f:
-            return json.load(f)
+            data = json.load(f)
+            self.cache[filename] = data
+            return data
 
 
     def save_settings(self, value:dict, filename="settings.json"):
@@ -407,6 +546,8 @@ class AppSettings():
         settings_file = os.path.join(self.dir, "VRC Control", filename)
         with open(settings_file, 'w') as f:
             json.dump(value, f, indent=4)
+
+        self.cache[filename] = value
 
 
 class CollapsibleFrame():
@@ -434,7 +575,7 @@ class CollapsibleFrame():
 
         self.items = []
         self.item_settings = item_settings
-        self.is_open = not collapsed or not collapsible
+        self.is_open = (not collapsed or not collapsible)
         self.offset = (title != None) + collapsible
         self.frame_grid = []
 
@@ -495,12 +636,12 @@ class CollapsibleFrame():
 
 
     def toggle(self, value=None):
-        if value:
+        if value != None:
             self.is_open = value
         else:
             self.is_open = not self.is_open
 
-        if self.is_open == 1:
+        if self.is_open:
             # self.frame_collapsed.grid_forget()
             self.frame_open.grid(*self.frame_grid[0], **self.frame_grid[1])
         else:
@@ -777,3 +918,26 @@ class BoolSelect(CTkFrame):
                 "selected":selected,
                 "item":label
             }
+
+
+class Notification(CTkFrame):
+    def __init__(self, master, text:str="", fg_color=None, border_color=None, text_color=None, border_width=2, **kwargs):
+        self.root = get_root(master)
+        super().__init__(self.root, corner_radius=10, fg_color=fg_color, border_color=border_color, border_width=border_width, cursor="hand2", **kwargs)
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+
+        self.label = CTkLabel(self, height=60, text=text, text_color=text_color, justify=LEFT, font=CTkFont(size=16))
+        self.label.grid(row=0, column=0, padx=10, pady=10, sticky="news")
+        self.label.bind("<Button-1>", self.click_callback)
+
+        self.bind("<Button-1>", self.click_callback)
+        self.root.notifications.append(self)
+        self.place(relx=0.5, x=100, y=35, anchor="center", relwidth=0.6)
+        
+    
+    def click_callback(self, _):
+        self.root.notifications.remove(self)
+        self.destroy()
+        
+        
