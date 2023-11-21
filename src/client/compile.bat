@@ -12,15 +12,21 @@ echo.
 echo.
 
 py -m nuitka ^
---follow-imports ^
---output-dir="../dist" ^
---enable-plugin=tk-inter ^
---standalone ^
---include-data-dir=sounds=sounds/ ^
 --onefile ^
---windows-icon-from-ico="data/CTRL.ico" ^
---include-data-file="data/CTRL.ico"="data/" ^
+--standalone ^
+--show-memory ^
+--follow-imports ^
 --disable-console ^
+--enable-plugin=tk-inter ^
+--include-data-dir=sounds=sounds/ ^
+--output-filename="VRC Control" ^
+--product-name="VRC Control" ^
+--company-name="Crowde" ^
+--product-version="2.0" ^
+--file-description="Control VRC Parameters through the web" ^
+--include-data-file="data/CTRL.ico"="data/" ^
+--windows-icon-from-ico="data/CTRL.ico" ^
+--output-dir="../../dist" ^
 main.py
 
 echo.
