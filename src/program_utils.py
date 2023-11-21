@@ -148,7 +148,7 @@ def get_root(widget):
 
 def get_avatars() -> dict:
     folder:str = AppSettings().load_settings(default=default_settings)["advanced"]["vrcfolder"]["value"]
-    avatars = {}
+    avatars:dict = {}
     if not path.isdir(folder):
         return avatars        
 
@@ -162,15 +162,15 @@ def get_avatars() -> dict:
             raw = ''.join([x for x in raw if x in printable])
 
             json_data = raw[raw.index("{"):]
-            data = loads(json_data)
+            data:dict = loads(json_data)
             if not "name" in data:
                 print("Invalid avatar file")
                 continue
 
-            offset = 0
+            offset:int = 0
             
             for i in range(len(data["parameters"])):
-                name = data["parameters"][i-offset]["name"]
+                name:str = data["parameters"][i-offset]["name"]
                 if name in parameter_ignore_list:
                     data["parameters"].pop(i-offset)
                     offset += 1
@@ -181,18 +181,18 @@ def get_avatars() -> dict:
 
 
 def get_avatar_data(params:dict, selected:dict) -> dict:
-    defaults = {
+    defaults:dict = {
         "bool": False,
         "float": 0.0,
         "int": 0
     }
 
-    out = {}
+    out:dict = {}
     for param in params:
         if param["name"] not in selected:
             continue
         
-        inp_type = param["input"]["type"].lower()
+        inp_type:str = param["input"]["type"].lower()
         out[param["name"]] = [inp_type, defaults[inp_type]]
     
     return out
@@ -231,8 +231,8 @@ class BackgroundJobs():
 
 
     def do_sound(self, sound, event_type=1) -> None:
-        settings = AppSettings().load_settings("settings.json")
-        do_sound = settings["normal"]["joinSounds"]["value"]
+        settings:dict = AppSettings().load_settings("settings.json")
+        do_sound:bool = settings["normal"]["joinSounds"]["value"]
 
         if do_sound:
             play_sound(sound)
@@ -242,10 +242,10 @@ class BackgroundJobs():
 
 
     def change(self) -> None:
-        settings = AppSettings().load_settings("settings.json")
-        do_sound = settings["normal"]["changeSounds"]["value"]
-        update_delay = settings["normal"]["changeDelay"]["value"]
-        delay = 1 * max(0.04, update_delay)
+        settings:dict = AppSettings().load_settings("settings.json")
+        do_sound:bool = settings["normal"]["changeSounds"]["value"]
+        update_delay:float = settings["normal"]["changeDelay"]["value"]
+        delay:float = 1 * max(0.04, update_delay)
 
         if time() - self.last_change_sound > delay and do_sound:
             self.last_change_sound = time()
@@ -330,10 +330,10 @@ class BackgroundJobs():
         if not self.websocket_error:
             Notification(AppSettings().root, "Failed to connect to server", **self.settings.BAD_NOTIFICATION)
 
-        self.websocket_error = True
-        self.initialized = False
-        settings = AppSettings().load_settings("settings.json", default_settings)
-        host = settings["advanced"]["host"]["value"]
+        self.websocket_error:bool = True
+        self.initialized:bool = False
+        settings:dict = AppSettings().load_settings("settings.json", default_settings)
+        host:str = settings["advanced"]["host"]["value"]
 
         error_type = type(error)
         if self.websocket_host != host:
@@ -412,16 +412,16 @@ class BackgroundJobs():
         if not "type" in data:
             return
 
-        handle_type = data["type"]
+        handle_type:str = data["type"]
 
         if handle_type == "update":
             req_data = data["data"]
-            name = req_data["name"]
+            name:str = req_data["name"]
             value = req_data["value"]
-            locked = req_data["locked"]
+            locked:bool = req_data["locked"]
 
             if req_data["type"] == "float":
-                value = myround(value)
+                value:float = myround(value)
             
             if self._osc_data[name][0] == value and self._osc_data[name][1] == locked:
                 return
