@@ -197,7 +197,6 @@ class RoomWindow(CTkToplevel):
         self.grid_rowconfigure(0, weight=1)
 
         self.bg_jobs:BackgroundJobs = AppSettings().background_jobs
-        self.bg_jobs.subscribe_callback(ConnectionResetError, self.on_close)
 
         self.title("Room")
         self.geometry("400x250")
@@ -261,6 +260,11 @@ class RoomWindow(CTkToplevel):
 
 
     def created_callback(self, id):
+        self.bg_jobs.subscribe_callback(ConnectionRefusedError, self.on_close)
+        self.bg_jobs.subscribe_callback(ConnectionAbortedError, self.on_close)
+        self.bg_jobs.subscribe_callback(ConnectionResetError, self.on_close)
+        self.bg_jobs.subscribe_callback(ConnectionError, self.on_close)
+
         settings = AppSettings().load_settings("settings.json")
         if settings["normal"]["joinSounds"]["value"]:
             play_sound(join_sound)

@@ -12,6 +12,7 @@ from time import time
 
 import os.path as path
 import asyncio
+import ssl
 
 
 get_file = lambda name: path.join(path.dirname(__file__), name)
@@ -132,12 +133,12 @@ default_settings = {
     "advanced": {
         "host": {
             "name": "Host",
-            "value": "ws://localhost:8081",
+            "value": "wss://crows.world/wss/:8081",
             "type": "text"
         },
         "vrcfolder": {
             "name": "OSC Avatar folder",
-            "value": "C:/Users/Jessa/AppData/LocalLow/VRChat/VRChat/OSC/usr_f4e7864a-68c1-4413-82e9-f57ff23a2fe1/Avatars",
+            "value": default_vrc_dir,
             "type": "path"
         }
     }
@@ -391,7 +392,7 @@ class BackgroundJobs():
 
             socket = WebSocketApp(socket_host, on_message=self._on_websocket_message, on_open=self._on_websocket_connect, on_close=self._on_websocket_close, on_error=self._websocket_error)
             self.websocket = socket
-            socket.run_forever()
+            socket.run_forever(sslopt={"cert_reqs": ssl.CERT_NONE})  
 
 
     def _osc_handle(self, adress:str, value) -> None:
