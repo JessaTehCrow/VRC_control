@@ -1,3 +1,5 @@
+const WS_HOST = "wss://crows.world/wss/:8081"
+
 let types = {
     "bool": "checkbox",
     "int": "number",
@@ -306,7 +308,7 @@ function handle_message(msg) {
 
 
 function new_conn(onOpen, onMessage, onError) {
-    let conn = new WebSocket('ws://localhost:8081')
+    let conn = new WebSocket(WS_HOST)
     conn.onopen = onOpen;
     conn.onmessage =onMessage;
     conn.onerror = onError;
