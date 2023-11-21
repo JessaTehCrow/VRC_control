@@ -1,4 +1,11 @@
-*/*/__pycache__/*
+#ignore
+**/__pycache__/*
 dist/*
-*/*/*.mdp
-*/*/*.png
+**/*.mdp
+**/*.png
+
+src/server/vendor/*
+composer.lock
+
+#keep
+!src/server/vendor/autoload.php
