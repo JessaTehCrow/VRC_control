@@ -1,6 +1,6 @@
 #ignore
-vendor/*
+src/server/vendor/*
 composer.lock
 
 #keep
-!vendor/autoload.php
+!src/server/vendor/autoload.php

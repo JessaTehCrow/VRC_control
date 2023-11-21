@@ -306,7 +306,7 @@ function handle_message(msg) {
 
 
 function new_conn(onOpen, onMessage, onError) {
-    let conn = new WebSocket('ws://localhost:8080')
+    let conn = new WebSocket('ws://localhost:8081')
     conn.onopen = onOpen;
     conn.onmessage =onMessage;
     conn.onerror = onError;
@@ -389,7 +389,7 @@ function value_update_callback(name, type, locked, value, element) {
             "value":value
         }
     })
-
+    console.log("Send:",data)
     conn.send(data)
 }
 

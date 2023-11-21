@@ -47,6 +47,9 @@ class Instance {
 
     function close() {
         foreach ($this->clients as $client) {
+            if ($client === $this->host) {
+                continue;
+            }
             $client->send(Errors::$DISCONNECTED);
         }
 
@@ -60,6 +63,10 @@ class Instance {
         if ($password != $this->password) {
             return [false, Errors::$WRONG_PASSWORD];
         }
+        if ($conn !== $this->host) {
+            $this->host->send(json_encode(["type" => "user_joined"]));
+        }
+        
         $conn->send(json_encode(["type" => "connected", "data" => ["id"=>$this->id, "password"=>$this->password, "data"=>$this->data]]));
         debug("\x1b[1;32mUser ($conn->resourceId) connected to room \x1b[0m{$this->id}");
         $this->clients->attach($conn);
@@ -69,12 +76,13 @@ class Instance {
 
     function disconnect($conn) {
         $conn->send(Errors::$DISCONNECTED);
-        
         debug("\x1b[1;31mUser ({$conn->resourceId}) disconnected from room \x1b[0m{$this->id}");
         
         if ($conn == $this->host) {
             debug("\x1b[1;31mClosing room \x1b[0m{$this->id}");
             $this->close();
+        } else {
+            $this->host->send(json_encode(["type" => "user_left"]));
         }
         $this->clients->detach($conn);
     }
