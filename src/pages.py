@@ -76,7 +76,8 @@ class NewInstance(CTkScrollableFrame):
     def __init__(self, master, settings:StyleSettings, *args, **kwargs):
         super().__init__(master, corner_radius=0, *args, **kwargs,fg_color=settings.BACKGROUND_COLOR, **settings.SCROLL_BAR)
         self.settings = settings
-        self.avatars = get_avatars()
+        self.avatars = None
+        self.avi_dir = None
         self.open = False
         self.room_window = None
 
@@ -143,8 +144,24 @@ class NewInstance(CTkScrollableFrame):
 
 
     def load_names(self):
+        app_settings = AppSettings().load_settings("settings.json")
+        avi_dir = app_settings["advanced"]["vrcfolder"]["value"]
+
+        if avi_dir != self.avi_dir:
+            self.avatars = get_avatars()
+            self.avi_dir = avi_dir
+
+        if self.avatars == None:
+            Notification(self, text="OSC Avatar directory is incorrect", **self.settings.BAD_NOTIFICATION)
+            return
+
+        elif len(self.avatars) == 0:
+            Notification(self, text="No avatars found. Wrong directory, or OSC is disabled in vrchat", **self.settings.BAD_NOTIFICATION)
+            return
+
         self.params.grid_forget()
         self.button.configure(state="disabled")
+        
         self.select.load_values(sorted(list(self.avatars.keys())))
         self.select.grid(row=1, column=0, sticky="sew", padx=20, pady=(0,20))
 

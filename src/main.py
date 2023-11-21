@@ -2,8 +2,6 @@ from customtkinter import *
 from program_utils import *
 import pages
 
-if getattr(sys, 'frozen', False):
-    os.chdir(os.path.dirname(sys.executable))
 
 class Navbar(CTkFrame):
     def __init__(self, master, settings, *args, **kwargs):

@@ -7,20 +7,25 @@ from pydub import AudioSegment
 from threading import Thread
 from string import printable
 from customtkinter import *
-from os import listdir
+from os import listdir, getenv
 from time import time
 
 import os.path as path
 import asyncio
 
+
 get_file = lambda name: path.join(path.dirname(__file__), name)
 get_sound = lambda name: AudioSegment.from_wav(get_file("sounds/"+name))
+
 
 join_sound = get_sound("join.wav")
 leave_sound = get_sound("leave.wav")
 change_sound = get_sound("change.wav")
 
-play(change_sound)
+
+default_vrc_dir = path.join(getenv("APPDATA"), "../LocalLow/VRChat/VRChat/OSC/")
+
+
 def play_sound(sound):
     settings = AppSettings().load_settings("settings.json")
     volume = settings["normal"]["volume"]["value"]
@@ -33,6 +38,7 @@ def myround(x, prec=2, base=0.0125):
     new_value = round(base * round(x/base), prec)
     return new_value
     # return round(base * round(float(x)/base), prec)
+
 
 parameter_ignore_list = [
     "Avatar Scale",
@@ -152,30 +158,36 @@ def get_avatars() -> dict:
     if not path.isdir(folder):
         return avatars        
 
-    for settings_path in listdir(folder):
-        if not settings_path.endswith(".json"):
+    for user_folder in listdir(folder):
+        if not path.isdir(folder + "/" + user_folder + "/Avatars"):
             continue
-        
-        with open(path.join(folder, settings_path), 'rb') as f:
-            raw = f.read()
-            raw = raw.decode('Windows-1252', 'ignore')
-            raw = ''.join([x for x in raw if x in printable])
 
-            json_data = raw[raw.index("{"):]
-            data:dict = loads(json_data)
-            if not "name" in data:
-                print("Invalid avatar file")
+        for settings_path in listdir(folder + "/" + user_folder + "/Avatars"):
+            filepath = path.join(folder + "/" + user_folder + "/Avatars", settings_path)
+
+            if not settings_path.endswith(".json"):
                 continue
-
-            offset:int = 0
             
-            for i in range(len(data["parameters"])):
-                name:str = data["parameters"][i-offset]["name"]
-                if name in parameter_ignore_list:
-                    data["parameters"].pop(i-offset)
-                    offset += 1
+            with open(filepath, 'rb') as f:
+                raw = f.read()
+                raw = raw.decode('Windows-1252', 'ignore')
+                raw = ''.join([x for x in raw if x in printable])
 
-            avatars[data["name"]] = data
+                json_data = raw[raw.index("{"):]
+                data:dict = loads(json_data)
+                if not "name" in data:
+                    print("Invalid avatar file")
+                    continue
+
+                offset:int = 0
+                
+                for i in range(len(data["parameters"])):
+                    name:str = data["parameters"][i-offset]["name"]
+                    if name in parameter_ignore_list:
+                        data["parameters"].pop(i-offset)
+                        offset += 1
+
+                avatars[data["name"]] = data
 
     return avatars
 
@@ -335,7 +347,7 @@ class BackgroundJobs():
         settings:dict = AppSettings().load_settings("settings.json", default_settings)
         host:str = settings["advanced"]["host"]["value"]
 
-        error_type = type(error)
+        error_type:type = type(error)
         if self.websocket_host != host:
             print("Host changed")
             socket.close()
@@ -383,7 +395,7 @@ class BackgroundJobs():
 
 
     def _osc_handle(self, adress:str, value) -> None:
-        name = adress[len("/avatar/parameters/"):]
+        name:str = adress[len("/avatar/parameters/"):]
         (osc_value, locked) = self._osc_data[name]
         
         if name not in self._osc_data:
@@ -431,9 +443,9 @@ class BackgroundJobs():
             self.osc_client.send_message("/avatar/parameters/"+name, value)
 
         elif handle_type == "connected":
-            req_data = data["data"]
-            self.roomid = req_data["id"]
-            self._osc_data = {name:value[1:] for (name,value) in req_data["data"].items()}
+            req_data:dict = data["data"]
+            self.roomid:str = req_data["id"]
+            self._osc_data:dict = {name:value[1:] for (name,value) in req_data["data"].items()}
             self.map_osc_dispatch()
 
             if self.create_callback != None:
@@ -522,8 +534,8 @@ class AppSettings():
         self._check_file("settings.json", default=default_settings)
 
 
-    def _check_file(self, filename="settings.json", default:dict={}):
-        settings_file = path.join(self.dir, "VRC Control", filename)
+    def _check_file(self, filename:str="settings.json", default:dict={}):
+        settings_file:str = path.join(self.dir, "VRC Control", filename)
         if path.isfile(settings_file): 
             return
 
@@ -534,12 +546,12 @@ class AppSettings():
             dump(default, f, indent=4)
 
 
-    def load_settings(self, filename="settings.json", default={}) -> dict:
+    def load_settings(self, filename:str="settings.json", default:dict={}) -> dict:
         if filename in self.cache:
             return self.cache[filename]
 
         self._check_file(filename, default=default)
-        settings_file = path.join(self.dir, "VRC Control", filename)
+        settings_file:str = path.join(self.dir, "VRC Control", filename)
         with open(settings_file, 'r') as f:
             data = load(f)
             self.cache[filename] = data
@@ -548,7 +560,7 @@ class AppSettings():
 
     def save_settings(self, value:dict, filename="settings.json"):
         self._check_file(filename)
-        settings_file = path.join(self.dir, "VRC Control", filename)
+        settings_file:str = path.join(self.dir, "VRC Control", filename)
         with open(settings_file, 'w') as f:
             dump(value, f, indent=4)
 
@@ -603,11 +615,11 @@ class CollapsibleFrame():
         item.grid_forget()
     
 
-    def init_item(self,item):
+    def init_item(self,item:CTkBaseClass):
         if not item in self.items:
             raise ValueError("Item does not exist")
         
-        index = self.items.index(item)
+        index:int = self.items.index(item)
 
         settings = dict(self.item_settings)
         settings["pady"] = (10,0)
