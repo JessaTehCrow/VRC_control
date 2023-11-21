@@ -1,7 +1,4 @@
-avatars.json
-*.bat
-*.exe
-build/
-dist/
-__pycache__/
-*.spec
+*/*/__pycache__/*
+dist/*
+*/*/*.mdp
+*/*/*.png
