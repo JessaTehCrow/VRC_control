@@ -19,8 +19,8 @@ py -m nuitka ^
 --disable-console ^
 --enable-plugin=tk-inter ^
 --include-data-dir=sounds=sounds/ ^
---output-filename="VRC Control" ^
---product-name="VRC Control" ^
+--output-filename="VRC Control Debug" ^
+--product-name="VRC Control Debug" ^
 --company-name="Crowde" ^
 --product-version="2.0" ^
 --file-description="Control VRC Parameters through the web" ^

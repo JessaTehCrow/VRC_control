@@ -42,9 +42,11 @@ Such as:
 - Connectivity issues
 - Bigger web UI for VR users
 - Opening the client twice does not work
+- Weird SSL error (Windows 10 22H2 [19045.3693])
 
 ## Special thanks
 
-#### Alpha testers
+### Alpha testers
 
 Purpleleven
+Dakota
