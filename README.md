@@ -12,7 +12,7 @@ This is a second rendition of this project, and a much easier to use version.
 
 ## Installing
 
-go to releases idiot
+See releases for the latest version
 
 ## Compatibility
 
@@ -41,6 +41,7 @@ Such as:
 
 - Connectivity issues
 - Bigger web UI for VR users
+- Opening the client twice does not work
 
 ## Special thanks
 
