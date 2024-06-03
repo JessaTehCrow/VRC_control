@@ -340,3 +340,19 @@ input[type=range]::-moz-range-thumb {
     width:20px;
     height:20px;
 }
+
+
+
+.field #input button:disabled {
+    background-color: #141927;
+    color:#5c9269;
+}
+
+.field #input button:disabled:hover {
+    cursor: default;
+}
+
+.field input:disabled {
+    background-color: #283249;
+    color: #7d8dbb;
+}

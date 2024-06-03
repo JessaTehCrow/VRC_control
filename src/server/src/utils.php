@@ -1,7 +1,7 @@
 <?php
 
 function debug(...$msg) {
-    echo implode(" ", $msg) . "\x1b[0m\n";
+    echo "\x1b[0;90m" .  date("F j h:i:s") . "\x1b[0m - " .  implode(" ", $msg) . "\x1b[0m\n";
 }
 
 function all_set(array $arr, array $values) {
@@ -16,10 +16,13 @@ function all_set(array $arr, array $values) {
 function is_type($type, $value): bool {
     if ($type == "bool") {
         return is_bool($value);
+
     } elseif ($type == "float") {
         return is_float($value) || is_int($value);
+        
     } elseif ($type == "int") {
         return is_int($value);
+        
     } else {
         return false;
     }
@@ -60,7 +63,6 @@ function valid_update(array $data): bool {
 function valid_data(array $data) {
     foreach ($data as $key => $value) {
         if (!is_array($value) || count($value) != 2 || !is_string($key)) {
-            echo "fail 1";
             return false;
         }
         

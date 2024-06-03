@@ -12,9 +12,13 @@ class Errors{
     public static $WRONG_DATA = '{"success":false, "message":"Invalid data supplied"}';
     public static $WRONG_PARAMETER = '{"success":false, "message":"Parameter does not exist"}';
     public static $WRONG_VALUE = '{"success":false, "message":"Invalid paramater value"}';
+    public static $WRONG_SECRET = '{"success":false, "message":"Invalid secret for room."}';
+    public static $WRONG_ID = '{"success":false, "message":"Room ID does not exist."}';
     
     public static $NOT_IN_INSTANCE = '{"success":false, "message":"Not in instance"}';
     public static $NOT_CONNECTED = '{"success":false, "message":"Not connected to any room"}';
+    public static $ROOM_IN_LIMBO = '{"success":false, "message":"Room is currently in limbo"}';
+    public static $ROOM_NOT_IN_LIMBO = '{"success":false, "message":"Room is not in limbo"}';
     
     public static $PASSWORD_TOO_LONG = '{"success":false, "message":"Incorrect password for room"}';
     public static $DISCONNECTED = '{"type":"disconnect","success":false, "message":"Disconnected from room"}';

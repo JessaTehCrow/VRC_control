@@ -5,14 +5,17 @@ require "utils.php";
 require "instance.php";
 require "errors.php";
 
+date_default_timezone_set("UTC");
+
 define("idLength", 5);
 define("maxPasswordLength", 16);
+define("limbo_timeout", 60);
 
 use Ratchet\MessageComponentInterface;
 use Ratchet\ConnectionInterface;
 
 class Chat implements MessageComponentInterface {
-    protected $instances;
+    protected Instances $instances; 
     protected $unassigned_clients;
 
 
@@ -29,6 +32,8 @@ class Chat implements MessageComponentInterface {
 
 
     public function onMessage(ConnectionInterface $from, $msg) {
+        $this->instances->update();
+
         $value = json_decode($msg, true);
 
         if ($value == NULL || !isset($value["type"])) {
@@ -59,6 +64,22 @@ class Chat implements MessageComponentInterface {
             }
         }
 
+        # Reconnect to room
+        elseif ($value["type"] == "reconnect") {
+            if ($connected) {
+                $from->send(Errors::$ALREADY_CONNECTED);
+                return;
+            }
+
+            [$result, $response] = $this->instances->reconnect($value["data"], $from);
+
+            if ($result) {
+                $this->unassigned_clients->detach($from);
+            }
+            
+            $from->send($response);
+        }
+
         // Create room
         elseif ($value["type"] == "create") {
             if ($connected) {
@@ -73,7 +94,7 @@ class Chat implements MessageComponentInterface {
             }
 
             $from->send($response);
-        } 
+        }
 
         // Disconnect from room
         elseif ($value["type"] == "disconnect") {
@@ -90,6 +111,7 @@ class Chat implements MessageComponentInterface {
             if (!$connected) {
                 $from->send(Errors::$NOT_CONNECTED);
                 return;
+                
             } elseif (!valid_update($value)) {
                 $from->send(Errors::$WRONG_DATA);
                 return;
@@ -115,7 +137,6 @@ class Chat implements MessageComponentInterface {
 
     public function onError(ConnectionInterface $conn, \Exception $e) {
         echo "An error has occurred: {$e->getMessage()}\n";
-
         $conn->close();
     }
 }

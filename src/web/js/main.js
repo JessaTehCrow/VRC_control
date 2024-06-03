@@ -1,9 +1,23 @@
-const WS_HOST = "wss://crows.world/wss/:8081"
+// const WS_HOST = "wss://crows.world/wss/:8081"
+const WS_HOST = "ws://127.0.0.1:8081"
 
 let types = {
     "bool": "checkbox",
     "int": "number",
     "float":"range"
+}
+
+function limbo(toggle) {
+    let inputs = document.querySelectorAll("input")
+    let buttons = document.querySelectorAll("button")
+
+    for (x of inputs) {
+        x.disabled = toggle;
+    }
+
+    for (x of buttons) {
+        x.disabled = toggle
+    }
 }
 
 function get_new_input(type, value) {
@@ -235,6 +249,8 @@ function handle_connect(data) {
 
 
 function handle_disconnect() {
+    limbo(false)
+
     join_section.classList = []
     content_section.classList = ["hidden"]
     room_id.value = ""
@@ -276,6 +292,7 @@ function update(data) {
 
 
 function handle_message(msg) {
+    console.log(msg)
     data = JSON.parse(msg)
     console.log(msg)
 
@@ -302,6 +319,15 @@ function handle_message(msg) {
 
         } else if (type == "update") {
             update(data["data"])
+
+        } else if (type == "limbo") {
+            let val = data["data"]["value"]
+            if (val) {
+                do_notification("Room went into limbo")
+            } else {
+                do_notification("Room recovered from limbo", true)
+            }
+            limbo(val)
         }
     }
 }

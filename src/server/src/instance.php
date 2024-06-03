@@ -13,9 +13,12 @@ function new_id($length = idLength) {
     return $randomString;
 }
 
+
 class Instance {
     public string $id;
     public bool $closed;
+    public int $limbo_time = 0;
+    public string $secret_id;
 
     protected $clients;
     protected array $data;
@@ -32,6 +35,7 @@ class Instance {
         $this->host = $host;
         $this->password = $password;
         $this->id = new_id();
+        $this->secret_id = new_id();
         $this->closed = false;
         $this->data = $data;
         $this->connect($host, $password);
@@ -42,6 +46,44 @@ class Instance {
 
     function is_host(ConnectionInterface $conn) {
         return $conn == $this->host;
+    }
+
+
+    function reconnect(array $data, ConnectionInterface $sender) {
+        if (!all_set($data, ["secret", "password"])) {
+            return [false, Errors::$WRONG_DATA];
+        }
+
+        $password = $data["password"];
+        $secret = $data["secret"];
+        if ($this->limbo_time == 0) {
+            return [false, Errors::$ROOM_NOT_IN_LIMBO];
+        }
+        else if ($this->password != $password) {
+            return [false, Errors::$WRONG_PASSWORD];
+        }
+        else if ($secret != $this->secret_id) {
+            return [false, Errors::$WRONG_SECRET];
+        }
+
+        $this->limbo_time = 0;
+        [$result, $response] =  $this->connect($sender, $password);
+
+        if (!$result) {
+            return [$result, $response];
+        }
+
+        $this->host = $sender;
+
+        $this->send(json_encode([
+            "type" => "limbo",
+            "data" => [
+                "value" => false
+            ],
+        ]), $sender);
+        
+        debug("\x1b[1;36mRoom recovered from limbo \x1b[0m{$this->id}");
+        return [true, ""];
     }
 
 
@@ -62,13 +104,16 @@ class Instance {
     function connect($conn, $password) {
         if ($password != $this->password) {
             return [false, Errors::$WRONG_PASSWORD];
+        } else if ($this->limbo_time != 0) {
+            return [false, Errors::$ROOM_IN_LIMBO];
         }
-        if ($conn !== $this->host) {
+        if ($conn !== $this->host && $this->limbo_time == 0) {
             $this->host->send(json_encode(["type" => "user_joined"]));
         }
         
-        $conn->send(json_encode(["type" => "connected", "data" => ["id"=>$this->id, "password"=>$this->password, "data"=>$this->data]]));
         debug("\x1b[1;32mUser ($conn->resourceId) connected to room \x1b[0m{$this->id}");
+        
+        $conn->send(json_encode(["type" => "connected", "data" => ["id"=>$this->id, "password"=>$this->password, "data"=>$this->data]]));
         $this->clients->attach($conn);
         return [true, ""];
     }
@@ -79,9 +124,10 @@ class Instance {
         debug("\x1b[1;31mUser ({$conn->resourceId}) disconnected from room \x1b[0m{$this->id}");
         
         if ($conn == $this->host) {
-            debug("\x1b[1;31mClosing room \x1b[0m{$this->id}");
-            $this->close();
-        } else {
+            debug("\x1b[1;36mRoom going into limbo \x1b[0m{$this->id}");
+            $this->send(json_encode(["type" => "limbo", "data" => ["value" => true]]));
+            $this->limbo_time = time();
+        } else if ($this->limbo_time == 0) {
             $this->host->send(json_encode(["type" => "user_left"]));
         }
         $this->clients->detach($conn);
@@ -97,7 +143,7 @@ class Instance {
     }
 
 
-    function update(array $data, $host): array {
+    function update(array $data, $sender): array {
         $lock = isset($data["locked"]);
 
         if (!isset($this->data[$data["name"]])) {
@@ -107,13 +153,13 @@ class Instance {
         if (!$lock && !is_type($this->data[$data["name"]][0], $data["value"])) {
             return [false, Errors::$WRONG_VALUE];
         }
-        
+
         if ($lock) {
             $this->data[$data["name"]][2] = $data["locked"];
         } else {
             $this->data[$data["name"]][1] = $data["value"];
         }
-        
+
         $info = $this->data[$data["name"]];
         $this->send(json_encode([
             "type" => "update",
@@ -123,16 +169,16 @@ class Instance {
                 "value" => $info[1],
                 "locked" => $info[2]
             ]
-        ]), $host);
+        ]), $sender);
         return [true,""];
     }
 }
 
 
 class Instances {
-    private array $instances;
+    private array $instances = [];
 
-    protected array $clients;
+    protected array $clients = [];
 
     function new_instance(ConnectionInterface $host, string $password, array $data) {
         $instance = new Instance($host, $password, $data);
@@ -151,6 +197,29 @@ class Instances {
         }
 
         return $this->instances[$id];
+    }
+
+
+    function reconnect(array $request, $client) {
+        if (!all_set($request, ["id", "secret", "password"])) {
+            return [false, Errors::$WRONG_DATA];
+        }
+
+        $instance = $this->get_instance($request["id"]);
+
+        if ($instance == false) {
+            return [false, Errors::$WRONG_ID];
+        }
+
+        [$result, $response] = $instance->reconnect($request, $client);
+
+        if ($result) {
+            $client_hash = spl_object_hash($client);
+            $this->clients[$client_hash] = $request["id"];
+            return [true, '{"success":true, "message":"Succesfully reconnected to room."}'];
+        } else {
+            return [$result, $response];
+        }
     }
 
 
@@ -209,11 +278,12 @@ class Instances {
 
         $instance = new Instance($client, $password, $request["data"]["data"]);
         $id = $instance->id;
+        $secret = $instance->secret_id;
 
         $this->instances[$id] = $instance;
         $this->clients[$client_hash] = $id;
 
-        return [true,json_encode(["success" => true, "message" => "Room created", "data" => ["id" => $id, "password" => $password]])];
+        return [true,json_encode(["success" => true, "message" => "Room created", "data" => ["id" => $id, "password" => $password, "secret" => $secret]])];
     }
 
 
@@ -236,9 +306,23 @@ class Instances {
         return false;
     }
 
+
+    function update() {
+        foreach ($this->instances as $instance) {
+            $limbo = $instance->limbo_time;
+            if ($limbo != 0 && time()-$limbo >= limbo_timeout) {
+                $instance->close();
+            }
+
+            if ($instance->closed) {
+                unset($this->instances[$instance->id]);
+            }
+        }
+    }
+
+
     function disconnect($client) {
         $client_hash = spl_object_hash($client);
-
         
         $instance = $this->get_client_instance($client);
         if (!$instance) {
@@ -247,9 +331,9 @@ class Instances {
         
         $instance->disconnect($client);
         if ($instance->closed) {
-            unset($this->instances[$instance->id]);
+            $this->update();
         }
-        
+
         $this->clients[$client_hash] = null;
     }
 }
