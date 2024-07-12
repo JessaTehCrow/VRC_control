@@ -70,7 +70,15 @@ Returns
 ```json
     "type":"reconnect",
     "success":true,
-    "message":"Successfully reconnected to room"
+    "message":"Successfully reconnected to room."
+```
+
+or
+
+```json
+    "type":"reconnect",
+    "success":false,
+    "message":"Failed to reconnected to room."
 ```
 ___
 

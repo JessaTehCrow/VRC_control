@@ -218,7 +218,7 @@ class Instances {
             $this->clients[$client_hash] = $request["id"];
             return [true, '{"type":"reconnect", "success":true, "message":"Succesfully reconnected to room."}'];
         } else {
-            return [$result, $response];
+            return [$result, '{"type":"reconnect", "success":false, "message":"Failed to reconnect to room"}'];
         }
     }
 
