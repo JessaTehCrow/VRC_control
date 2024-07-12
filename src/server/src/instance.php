@@ -208,7 +208,7 @@ class Instances {
         $instance = $this->get_instance($request["id"]);
 
         if ($instance == false) {
-            return [false, Errors::$WRONG_ID];
+            return [false, '{"type":"reconnect", "success":false, "message":"Failed to reconnect to room"}'];
         }
 
         [$result, $response] = $instance->reconnect($request, $client);
