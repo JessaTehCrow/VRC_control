@@ -1,4 +1,6 @@
 {
+    "name": "vrc/control",
+    "description": "Websocket for vrc_control setup!",
     "autoload": {
         "psr-4": {
             "MyApp\\": "src"
