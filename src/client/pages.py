@@ -1,6 +1,11 @@
 import pyperclip
 from customtkinter import *
 from program_utils import *
+from websocket import (
+    WebSocketBadStatusException,
+    WebSocketConnectionClosedException
+)
+
 
 class Settings(CTkScrollableFrame):
     def __init__(self, master, settings, *args, **kwargs):
@@ -191,6 +196,10 @@ class RoomWindow(CTkToplevel):
         self.data = data
         self.settings = settings
         self.connected = 1
+        self.secret = None
+        self.id = None
+        self.retries = 0
+
         self.close_callback = close_callback
 
         self.grid_columnconfigure(0, weight=1)
@@ -207,7 +216,7 @@ class RoomWindow(CTkToplevel):
         self.label = CTkLabel(self, text="Connecting...")
         self.label.grid(row=0, column=0)
 
-        self.retry = CTkButton(self, text="Retry", command=self.retry_connect, **self.settings.BUTTON_STYLE, font=CTkFont(size=20))
+        # self.retry = CTkButton(self, text="Retry", command=self.retry_connect, **self.settings.BUTTON_STYLE, font=CTkFont(size=20))
         self.bg_jobs.joinleave_callback = self.user_callbacks
 
         if not self.bg_jobs.initialized:
@@ -223,22 +232,29 @@ class RoomWindow(CTkToplevel):
         self.connected += new
         self.connected_label.configure(text=f"Connected: {self.connected}")
 
+    def reconnect_callback(self):
+        def rejoin_callback(success):
+            print("WE GOT A CALLBACK BABY")
+            self.bg_jobs.room_rejoin_callback = None
+            if not success:
+                self.on_close()
 
-    def retry_connect(self):
-        if self.bg_jobs.initialized:
-            self.connect()
-            return
-        
-        self.label.configure(text="Connecting...")
-        self.retry.grid_forget()
-        self.bg_jobs.subscribe_callback(ConnectionRefusedError, self.failed_connect)
-        self.bg_jobs.websocket_connect_callbacks.append(self.connect)
+        self.retries = 0
+        self.bg_jobs.websocket_connect_callbacks.remove(self.reconnect_callback)
+        self.bg_jobs.room_rejoin_callback = rejoin_callback
+        self.bg_jobs.reconnect_room(self.id, self.secret)
+
+    def retry_connect(self, *_):
+        if self.retries == 0:
+            self.bg_jobs.websocket_connect_callbacks.append(self.reconnect_callback)
+        elif self.retries >= 10:
+            self.on_close()
+
+        self.retries += 1
 
 
     def failed_connect(self, _=None):
         self.label.configure(text="Failed to connect")
-        self.retry.grid(row=1, column=0, sticky="ew")
-        self.bg_jobs.unsubscribe_callback(ConnectionRefusedError, self.failed_connect)
 
         if self.connect in self.bg_jobs.websocket_connect_callbacks:
             self.bg_jobs.websocket_connect_callbacks.remove(self.connect)
@@ -259,15 +275,17 @@ class RoomWindow(CTkToplevel):
         AppSettings().background_jobs.create_room(password, self.data)
 
 
-    def created_callback(self, id):
-        self.bg_jobs.subscribe_callback(ConnectionRefusedError, self.on_close)
-        self.bg_jobs.subscribe_callback(ConnectionAbortedError, self.on_close)
-        self.bg_jobs.subscribe_callback(ConnectionResetError, self.on_close)
-        self.bg_jobs.subscribe_callback(ConnectionError, self.on_close)
+    def created_callback(self, id, secret):
+        self.bg_jobs.subscribe_callback(WebSocketConnectionClosedException, self.retry_connect)
+        self.bg_jobs.subscribe_callback(WebSocketBadStatusException, self.retry_connect)
+        self.bg_jobs.subscribe_callback(ConnectionRefusedError, self.retry_connect)
 
         settings = AppSettings().load_settings("settings.json")
         if settings["normal"]["joinSounds"]["value"]:
             play_sound(join_sound)
+
+        self.secret = secret
+        self.id = id
 
         self.clear_frame()
 
@@ -304,8 +322,9 @@ class RoomWindow(CTkToplevel):
             play_sound(leave_sound)
 
         self.bg_jobs.joinleave_callback = None
-        self.bg_jobs.unsubscribe_callback(ConnectionResetError, self.on_close)
-        self.bg_jobs.unsubscribe_callback(ConnectionRefusedError, self.failed_connect)
+        self.bg_jobs.unsubscribe_callback(WebSocketConnectionClosedException, self.retry_connect)
+        self.bg_jobs.unsubscribe_callback(WebSocketBadStatusException, self.retry_connect)
+        self.bg_jobs.unsubscribe_callback(ConnectionRefusedError, self.retry_connect)
 
         if self.bg_jobs.initialized:
             self.bg_jobs.bg_send('{"type":"disconnect"}')

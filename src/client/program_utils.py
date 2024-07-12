@@ -14,7 +14,6 @@ import os.path as path
 import asyncio
 import ssl
 
-
 get_file = lambda name: path.join(path.dirname(__file__), name)
 get_sound = lambda name: AudioSegment.from_wav(get_file("sounds/"+name))
 
@@ -216,7 +215,7 @@ class BackgroundJobs():
         self.initialized = False
 
         self.settings = None
-        
+
         self.websocket = None
         self.websocket_error = False
         self.websocket_host = None
@@ -236,6 +235,7 @@ class BackgroundJobs():
         self.osc_send = 9000
         self.osc_recv = 9001
 
+        self.room_rejoin_callback = None
         self.create_callback = None
         self.roomid = None
         self.closed = False
@@ -280,7 +280,7 @@ class BackgroundJobs():
         
         self.websocket_error_callbacks[callback_type].remove(function)
         return
-    
+
 
     def create_room(self, password, data) -> None:
         data = {
@@ -288,6 +288,17 @@ class BackgroundJobs():
             "data":{
                 "password":password,
                 "data": data
+            }
+        }
+        self.bg_send(dumps(data))
+    
+
+    def reconnect_room(self, id, secret):
+        data = {
+            "type":"reconnect",
+            "data": {
+                "id":id,
+                "secret":secret
             }
         }
         self.bg_send(dumps(data))
@@ -303,7 +314,7 @@ class BackgroundJobs():
         thread = Thread(target=self._setup_socket)
         thread.start()
         self._web_thread = thread
-    
+
 
     def bg_send(self, data:str) -> None:
         self.websocket.send(data)
@@ -339,7 +350,7 @@ class BackgroundJobs():
     
     
     def _websocket_error(self, socket, error) -> None:
-        print(type(error).__name__, error)
+        print("eror:",type(error).__name__, error)
         if not self.websocket_error:
             Notification(AppSettings().root, "Failed to connect to server", **self.settings.BAD_NOTIFICATION)
 
@@ -354,9 +365,11 @@ class BackgroundJobs():
             socket.close()
         
         if not error_type in self.websocket_error_callbacks:
+            print("Not found")
             return
         
         for f in self.websocket_error_callbacks[error_type]:
+            print(f)
             f(error)
 
 
@@ -443,14 +456,15 @@ class BackgroundJobs():
             self._osc_data[name] = [value, locked]
             self.osc_client.send_message("/avatar/parameters/"+name, value)
 
-        elif handle_type == "connected":
+        elif handle_type == "create":
             req_data:dict = data["data"]
             self.roomid:str = req_data["id"]
+            self.secret:str = req_data["secret"]
             self._osc_data:dict = {name:value[1:] for (name,value) in req_data["data"].items()}
             self.map_osc_dispatch()
 
             if self.create_callback != None:
-                self.create_callback(self.roomid)
+                self.create_callback(self.roomid, self.secret)
 
         elif handle_type == "disconnect":
             self.reset_osc_dispatch()
@@ -462,9 +476,13 @@ class BackgroundJobs():
         
         elif handle_type == "user_left":
             self.do_sound(leave_sound, -1)
+        
+        elif handle_type == "reconnect":
+            # req_data:dict = data["data"]
+            success = data["success"]
 
-        else:
-            print(data)
+            if self.room_rejoin_callback != None:
+                self.room_rejoin_callback(success)
 
 
 class StyleSettings():

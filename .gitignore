@@ -1,4 +1,6 @@
-*/*/__pycache__/*
+**/__pycache__/
+**/*.spec
 dist/*
-*/*/*.mdp
-*/*/*.png
+src/avatars.json
+build/
+run.bat
