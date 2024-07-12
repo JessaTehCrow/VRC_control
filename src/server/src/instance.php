@@ -201,7 +201,7 @@ class Instances {
 
 
     function reconnect(array $request, $client) {
-        if (!all_set($request, ["id", "secret", "password"])) {
+        if (!all_set($request, ["id", "secret"])) {
             return [false, Errors::$WRONG_DATA];
         }
 
@@ -216,7 +216,7 @@ class Instances {
         if ($result) {
             $client_hash = spl_object_hash($client);
             $this->clients[$client_hash] = $request["id"];
-            return [true, '{"success":true, "message":"Succesfully reconnected to room."}'];
+            return [true, '{"type":"reconnect", "success":true, "message":"Succesfully reconnected to room."}'];
         } else {
             return [$result, $response];
         }

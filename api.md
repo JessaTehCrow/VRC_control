@@ -65,6 +65,13 @@ or
 }
 ```
 
+Returns
+
+```json
+    "type":"reconnect",
+    "success":true,
+    "message":"Successfully reconnected to room"
+```
 ___
 
 ### create
