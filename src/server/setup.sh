@@ -3,6 +3,11 @@ if ! command -v php &> /dev/null
 then
     echo "PHP not installed"
     echo "Please instal PHP >= 8.2.15"
+    echo
+    echo "-- If you do have PHP installed, make sure you run this with bash and not sh --"
+    echo "Example:"
+    echo "bash setup.sh"
+    exit
 fi
 
 php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
