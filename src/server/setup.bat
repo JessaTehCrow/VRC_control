@@ -11,6 +11,6 @@ php -r "if (hash_file('sha384', 'composer-setup.php') === 'dac665fdc30fdd8ec78b3
 php composer-setup.php
 php -r "unlink('composer-setup.php');"
 
-php composer.phar validate
+php composer.phar update
 
 del composer.phar
