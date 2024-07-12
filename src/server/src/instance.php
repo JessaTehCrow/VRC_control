@@ -19,9 +19,9 @@ class Instance {
     public bool $closed;
     public int $limbo_time = 0;
     public string $secret_id;
+    public array $data;
 
     protected $clients;
-    protected array $data;
 
     private ConnectionInterface $host;
     private string $password;
@@ -283,7 +283,7 @@ class Instances {
         $this->instances[$id] = $instance;
         $this->clients[$client_hash] = $id;
 
-        return [true,json_encode(["type" => "create", "success" => true, "message" => "Room created", "data" => ["id" => $id, "password" => $password, "secret" => $secret]])];
+        return [true,json_encode(["type" => "create", "success" => true, "message" => "Room created", "data" => ["id" => $id, "password" => $password, "secret" => $secret, "data" => $instance->data]])];
     }
 
 
