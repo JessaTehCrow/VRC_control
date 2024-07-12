@@ -283,7 +283,7 @@ class Instances {
         $this->instances[$id] = $instance;
         $this->clients[$client_hash] = $id;
 
-        return [true,json_encode(["success" => true, "message" => "Room created", "data" => ["id" => $id, "password" => $password, "secret" => $secret]])];
+        return [true,json_encode(["type" => "create", "success" => true, "message" => "Room created", "data" => ["id" => $id, "password" => $password, "secret" => $secret]])];
     }
 
 

@@ -60,7 +60,7 @@ or
     "type": "reconnect",
     "data": {
         "id": ROOM_ID > string,
-        "secret": SECRET_ID > string
+        "secret": SECRET_ID > string,
     }
 }
 ```
@@ -81,7 +81,7 @@ ___
         "data": {
             KEY > string : [
                 TYPE > string,
-                VALUE > Any
+                VALUE > Any,
             ]
             . . .
         }
@@ -93,12 +93,13 @@ ___
 
 ```json 
 {
+    "type":"create"
     "success":true,
     "message":"Room created",
     "data": {
         "id": ROOM_ID,
         "password": PASSWORD,
-        "secret": SECRET_ID
+        "secret": SECRET_ID,
     }
 }
 ```
